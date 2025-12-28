@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Configurações Críticas para Alta Performance e AOT -->
+    <PublishAot>true</PublishAot>
+    
+    <!-- Reduz o tamanho da imagem removendo dados de globalização (usa Invariant Culture) -->
+    <!-- Ideal para microsserviços que trafegam dados técnicos/JSON em inglês/neutro -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    
+    <!-- Remove strings de exceção detalhadas para economizar espaço -->
+    <StackTraceSupport>false</StackTraceSupport>
+    
+    <!-- Instrui o compilador a priorizar velocidade de execução sobre tamanho do binário -->
+    <OptimizationPreference>Speed</OptimizationPreference>
+    
+    <!-- Remove suporte a depuração remota em release para segurança e tamanho -->
+    <DebuggerSupport>false</DebuggerSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
+    <!-- <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.0" /> -->
+  </ItemGroup>
+
+</Project>
