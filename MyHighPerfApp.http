@@ -1,6 +1,30 @@
-@MyHighPerfApp_HostAddress = http://localhost:5000
+@MyHighPerfApp_HostAddress = http://localhost:5296
+@ContentType = application/json
 
+### GET /process - Processa dados com Object Pooling
 GET {{MyHighPerfApp_HostAddress}}/process
-Accept: application/json
+Accept: {{ContentType}}
 
-###
+### GET /process - Com filtro de query
+GET {{MyHighPerfApp_HostAddress}}/process?queryFilter=teste
+Accept: {{ContentType}}
+
+### GET /sql-stream - Stream de dados do banco de dados
+GET {{MyHighPerfApp_HostAddress}}/sql-stream
+Accept: {{ContentType}}
+
+### GET /sql-stream - Filtrar por InfoId
+GET {{MyHighPerfApp_HostAddress}}/sql-stream?infoId=1
+Accept: {{ContentType}}
+
+### GET /sql-stream - Filtrar por firstName
+GET {{MyHighPerfApp_HostAddress}}/sql-stream?firstName=John
+Accept: {{ContentType}}
+
+### GET /sql-stream - Filtrar por ambos os parâmetros
+GET {{MyHighPerfApp_HostAddress}}/sql-stream?infoId=1&firstName=Mau
+Accept: {{ContentType}}
+### POST /atomic-operation - Executa transação atômica com CancellationToken
+# Garante atomicidade: INSERT + UPDATE + DELETE com rollback automático em caso de cancelamento
+POST {{MyHighPerfApp_HostAddress}}/atomic-operation
+Accept: {{ContentType}}

@@ -58,6 +58,34 @@ app.MapGet("/sql-stream", (int? infoId = null, string? firstName = null) =>
     return StreamDataAsync(connectionString, infoId, firstName);
 });
 
+// Endpoint com transação atômica e suporte a CancellationToken
+app.MapPost("/atomic-operation", async (HttpContext context, CancellationToken cancellationToken) =>
+{
+    var connectionString = "Data Source=(localdb)\\MSSQLLocalDB;Integrated Security=True;Pooling=False;Connect Timeout=30;Encrypt=False;Trust Server Certificate=True;Application Name=MyHighPerfApp;Application Intent=ReadWrite;Command Timeout=30";
+    
+    try
+    {
+        var result = await ExecuteAtomicOperationAsync(connectionString, cancellationToken);
+        return Results.Ok(new { success = true, message = "Operação atômica concluída com sucesso", data = result });
+    }
+    catch (OperationCanceledException ex)
+    {
+        context.Response.StatusCode = StatusCodes.Status408RequestTimeout;
+        return Results.Json(
+            new { success = false, error = "Operação cancelada pelo cliente ou timeout", details = ex.Message },
+            statusCode: StatusCodes.Status408RequestTimeout
+        );
+    }
+    catch (Exception ex)
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        return Results.Json(
+            new { success = false, error = "Erro na operação atômica", details = ex.Message },
+            statusCode: StatusCodes.Status500InternalServerError
+        );
+    }
+});
+
 static async IAsyncEnumerable<SqlResponseData> StreamDataAsync(string connectionString, int? infoId = null, string? firstName = null)
 {
     string sqlQuery = "SELECT [InfoId], [FirstName], [BirthDate], [EncryptedKeyNumber] FROM [DBTest].[dbo].[DataInfo] WHERE (@InfoId IS NULL OR [InfoId] = @InfoId) AND (@FirstName IS NULL OR [FirstName] LIKE '%' + ISNULL(@FirstName,'') + '%') ORDER BY [InfoId] ASC";
@@ -81,6 +109,108 @@ static async IAsyncEnumerable<SqlResponseData> StreamDataAsync(string connection
     }
 }
 
+// Método com transação atômica e suporte a CancellationToken
+static async Task<AtomicOperationResult> ExecuteAtomicOperationAsync(
+    string connectionString, 
+    CancellationToken cancellationToken = default)
+{
+    var result = new AtomicOperationResult();
+    
+    await using var conn = new SqlConnection(connectionString);
+    // Passa CancellationToken ao OpenAsync
+    await conn.OpenAsync(cancellationToken);
+
+    // Inicia transação com isolamento apropriado
+    using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+    
+    try
+    {
+        // ============ INSERT ============
+        var insertCmd = new SqlCommand(
+            "INSERT INTO [DBTest].[dbo].[DataInfo] (FirstName, BirthDate) VALUES (@firstName, @birthDate)",
+            conn, 
+            transaction);
+        
+        insertCmd.Parameters.AddWithValue("@firstName", "João Silva");
+        insertCmd.Parameters.AddWithValue("@birthDate", new DateTime(1990, 5, 15));
+        
+        // Passa CancellationToken ao comando
+        await insertCmd.ExecuteNonQueryAsync(cancellationToken);
+        result.InsertedRows = 1;
+        
+        // Simula operação demorada que pode ser cancelada
+        await Task.Delay(100, cancellationToken);
+
+        // ============ UPDATE ============
+        var updateCmd = new SqlCommand(
+            "UPDATE [DBTest].[dbo].[DataInfo] SET FirstName = @newName WHERE FirstName = @oldName",
+            conn,
+            transaction);
+        
+        updateCmd.Parameters.AddWithValue("@newName", "João da Silva");
+        updateCmd.Parameters.AddWithValue("@oldName", "João Silva");
+        
+        await updateCmd.ExecuteNonQueryAsync(cancellationToken);
+        result.UpdatedRows = 1;
+
+        // ============ DELETE ============
+        var deleteCmd = new SqlCommand(
+            "DELETE FROM [DBTest].[dbo].[DataInfo] WHERE FirstName LIKE @pattern",
+            conn,
+            transaction);
+        
+        deleteCmd.Parameters.AddWithValue("@pattern", "%Teste%");
+        
+        await deleteCmd.ExecuteNonQueryAsync(cancellationToken);
+        result.DeletedRows = 0; // Provavelmente nenhuma linha
+
+        // ✅ COMMIT: Todas as operações foram bem-sucedidas
+        await transaction.CommitAsync(cancellationToken);
+        result.IsSuccess = true;
+        result.Message = "Transação confirmada com sucesso (COMMIT)";
+    }
+    catch (OperationCanceledException)
+    {
+        // ❌ ROLLBACK automático em caso de cancelamento
+        try
+        {
+            await transaction.RollbackAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignora cancellamento durante rollback para garantir limpeza
+            transaction.Rollback();
+        }
+        
+        result.IsSuccess = false;
+        result.Message = "Transação cancelada e revertida (ROLLBACK)";
+        throw;
+    }
+    catch (Exception ex)
+    {
+        // ❌ ROLLBACK automático em caso de erro
+        try
+        {
+            await transaction.RollbackAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            transaction.Rollback();
+        }
+        
+        result.IsSuccess = false;
+        result.Message = $"Transação revertida (ROLLBACK) - Erro: {ex.Message}";
+        throw;
+    }
+    finally
+    {
+        // Garante limpeza de recursos
+        await conn.CloseAsync();
+    }
+
+    return result;
+}
+
 app.Run();
 
 // --- Definições de Dados ---
@@ -90,6 +220,16 @@ public class ResponseData
     public Guid Id { get; set; }
     public DateTime Timestamp { get; set; }
     public string? Message { get; set; }
+}
+
+// Resultado da operação atômica
+public class AtomicOperationResult
+{
+    public bool IsSuccess { get; set; }
+    public string? Message { get; set; }
+    public int InsertedRows { get; set; }
+    public int UpdatedRows { get; set; }
+    public int DeletedRows { get; set; }
 }
 
 // Struct otimizado para leitura de banco (evita GC overhead)
