@@ -1,30 +1,56 @@
 @MyHighPerfApp_HostAddress = http://localhost:5296
-@ContentType = application/json
+@ContentType = application/json; charset=utf-8
+
+### GET /process-content-ok - Processa dados com Object Pooling
+# curl --location --request GET 'http://localhost:5296/process-content-ok'
+GET {{MyHighPerfApp_HostAddress}}/process-content-ok
+Accept: {{ContentType}}
 
 ### GET /process - Processa dados com Object Pooling
+# curl --location --request GET 'http://localhost:5296/process'
 GET {{MyHighPerfApp_HostAddress}}/process
 Accept: {{ContentType}}
 
 ### GET /process - Com filtro de query
-GET {{MyHighPerfApp_HostAddress}}/process?queryFilter=teste
+GET {{MyHighPerfApp_HostAddress}}/process?queryFilter=Zé✅
 Accept: {{ContentType}}
 
 ### GET /sql-stream - Stream de dados do banco de dados
+# curl --location --request GET 'http://localhost:5296/sql-stream'
 GET {{MyHighPerfApp_HostAddress}}/sql-stream
 Accept: {{ContentType}}
 
 ### GET /sql-stream - Filtrar por InfoId
+# curl --location --request GET 'http://localhost:5296/sql-stream?infoId=1'
 GET {{MyHighPerfApp_HostAddress}}/sql-stream?infoId=1
 Accept: {{ContentType}}
 
 ### GET /sql-stream - Filtrar por firstName
-GET {{MyHighPerfApp_HostAddress}}/sql-stream?firstName=John
+# curl --location --request GET 'http://localhost:5296/sql-stream?firstName=Zé'
+GET {{MyHighPerfApp_HostAddress}}/sql-stream?firstName=Zé
 Accept: {{ContentType}}
 
 ### GET /sql-stream - Filtrar por ambos os parâmetros
+# curl --location --request GET 'http://localhost:5296/sql-stream?infoId=1&firstName=Mau'
 GET {{MyHighPerfApp_HostAddress}}/sql-stream?infoId=1&firstName=Mau
 Accept: {{ContentType}}
+
+### POST /submit - Envia dados com alta performance (Object Pool)
+POST {{MyHighPerfApp_HostAddress}}/submit
+Content-Type: {{ContentType}}
+Accept: {{ContentType}}
+
+{
+  "name": "✅",
+  "action": "Ação  prática",
+  "actionValue": 55.75,
+  // "actionDateTime": "2026-01-02T15:58:00"
+  "actionDateTime": "2026-01-04",
+  "additionalInfo": "info extra ⚠️"
+}
+
 ### POST /atomic-operation - Executa transação atômica com CancellationToken
 # Garante atomicidade: INSERT + UPDATE + DELETE com rollback automático em caso de cancelamento
+# curl --location --request POST 'http://localhost:5296/atomic-operation'
 POST {{MyHighPerfApp_HostAddress}}/atomic-operation
 Accept: {{ContentType}}

@@ -1,5 +1,5 @@
 # --- Estágio de Compilação ---
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Instala dependências nativas necessárias para compilar AOT (clang, zlib)
@@ -20,11 +20,11 @@ RUN dotnet publish "MyHighPerfApp.csproj" -c Release -r linux-x64 -o /app/publis
 # Usa a imagem 'runtime-deps' versão 'chiseled' (Ubuntu talhado).
 # Esta imagem contém apenas as dependências nativas mínimas para rodar binários AOT.
 # Sem shell, sem gerenciador de pacotes, sem root (segurança máxima).
-FROM mcr.microsoft.com/dotnet/runtime-deps:8.0-jammy AS final
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0-noble AS final
 WORKDIR /app
 
 # Instala dependências de globalização (ICU) exigidas pelo SqlClient
-RUN apt-get update && apt-get install -y --no-install-recommends libicu70 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libicu74 && rm -rf /var/lib/apt/lists/*
 
 # Copia o executável nativo do estágio de build
 COPY --from=build /app/publish/MyHighPerfApp .

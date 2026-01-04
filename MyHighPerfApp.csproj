@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
+    <IsTrimmable>true</IsTrimmable>
+
     <!-- Configurações Críticas para Alta Performance e AOT -->
     <PublishAot>true</PublishAot>
     
